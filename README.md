@@ -171,3 +171,4 @@ Zip `dist\FrameTags` and share it. Users can run `FrameTags.exe` directly.
 - richer sidecar-aware workflows
 
 
+
