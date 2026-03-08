@@ -1,7 +1,6 @@
 ﻿from __future__ import annotations
 
 import os
-import shutil
 import sys
 from pathlib import Path
 
@@ -27,33 +26,10 @@ def resolve_user_data_dir(app_name: str = "FrameTags") -> Path:
     return Path.home() / f".{app_name.lower()}"
 
 
-def migrate_legacy_data_if_needed(data_dir: Path, legacy_dirs: list[Path]) -> None:
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    for filename in ("presets.json", "settings.json"):
-        target = data_dir / filename
-        if target.exists():
-            continue
-
-        for legacy_dir in legacy_dirs:
-            source = legacy_dir / filename
-            if source.exists():
-                shutil.copy2(source, target)
-                break
-
-
 def main() -> int:
     app_root = resolve_app_root()
     data_dir = resolve_user_data_dir("FrameTags")
-
-    migrate_legacy_data_if_needed(
-        data_dir,
-        legacy_dirs=[
-            app_root / "data",
-            app_root / "_internal" / "data",
-            Path(__file__).resolve().parent / "data",
-        ],
-    )
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     configure_logging(data_dir / "frametags.log")
 
