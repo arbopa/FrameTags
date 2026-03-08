@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import subprocess
 import sys
@@ -16,9 +16,15 @@ ProgressCallback = Callable[[int, int], None]
 
 def find_exiftool() -> str:
     app_dir = Path(sys.argv[0]).resolve().parent
-    local = app_dir / "exiftool.exe"
-    if local.exists():
-        return str(local)
+    candidates: list[Path] = [app_dir / "exiftool.exe", app_dir / "_internal" / "exiftool.exe"]
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(str(meipass)) / "exiftool.exe")
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
     return "exiftool"
 
 
