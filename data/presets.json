@@ -1,0 +1,15 @@
+{
+  "presets": [
+    {
+      "name": "artistemailwebsite",
+      "fields": {
+        "artist": "Paul Arbogast",
+        "copyright": "Paul Arbogast",
+        "creator_email": "arbopa@gmail.com",
+        "creator_website": "www.paularbogast.com",
+        "caption": "an image taken by paul arbogast",
+        "keywords": "image"
+      }
+    }
+  ]
+}

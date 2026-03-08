@@ -1,0 +1,1 @@
+"""FrameTags application package."""
