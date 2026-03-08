@@ -10,7 +10,7 @@ a = Analysis(
         ('exiftool.exe', '.'),
         ('exiftool_files', 'exiftool_files'),
     ],
-    hiddenimports=[],
+    hiddenimports=['exiftool'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -45,4 +45,5 @@ coll = COLLECT(
     upx=True,
     upx_exclude=[],
     name='FrameTags',
+    contents_directory='.',
 )

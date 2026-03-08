@@ -152,11 +152,12 @@ build.bat
 Distribution layout:
 
 ```text
-dist\FrameTags\
+dist\\FrameTags\\
   FrameTags.exe
   exiftool.exe
-  exiftool_files\
-  _internal\...
+  exiftool_files\\
+  data\\
+  [PyInstaller runtime files]
 ```
 
 Zip `dist\FrameTags` and share it. Users can run `FrameTags.exe` directly.
@@ -168,3 +169,5 @@ Zip `dist\FrameTags` and share it. Users can run `FrameTags.exe` directly.
 - Metadata reporting (value distributions and keyword counts)
 - RAW -> JPEG metadata copy workflows
 - richer sidecar-aware workflows
+
+
