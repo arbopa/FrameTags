@@ -7,8 +7,10 @@ from typing import Callable
 
 try:
     from exiftool import ExifToolHelper
+    import exiftool.exiftool as pyexiftool_module
 except ImportError:  # pragma: no cover - handled at runtime
     ExifToolHelper = None  # type: ignore[assignment]
+    pyexiftool_module = None  # type: ignore[assignment]
 
 
 ProgressCallback = Callable[[int, int], None]
@@ -28,10 +30,44 @@ def find_exiftool() -> str:
     return "exiftool"
 
 
+def _windows_hidden_kwargs() -> dict[str, object]:
+    if sys.platform != "win32":
+        return {}
+
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = 0
+
+    return {
+        "creationflags": subprocess.CREATE_NO_WINDOW,
+        "startupinfo": startupinfo,
+    }
+
+
+def _patch_pyexiftool_popen_for_windows() -> None:
+    if sys.platform != "win32" or pyexiftool_module is None:
+        return
+
+    if getattr(pyexiftool_module, "_frametags_hidden_popen", False):
+        return
+
+    original_popen = pyexiftool_module.subprocess.Popen
+    hidden_kwargs = _windows_hidden_kwargs()
+
+    def patched_popen(*args: object, **kwargs: object):
+        kwargs.setdefault("creationflags", hidden_kwargs.get("creationflags", 0))
+        kwargs.setdefault("startupinfo", hidden_kwargs.get("startupinfo"))
+        return original_popen(*args, **kwargs)
+
+    pyexiftool_module.subprocess.Popen = patched_popen
+    pyexiftool_module._frametags_hidden_popen = True
+
+
 class ExifToolRunner:
     def __init__(self, executable: str | None = None) -> None:
         self.executable = executable or find_exiftool()
         self._helper: ExifToolHelper | None = None
+        self._subprocess_kwargs = _windows_hidden_kwargs()
 
     def is_available(self) -> bool:
         try:
@@ -40,6 +76,7 @@ class ExifToolRunner:
                 capture_output=True,
                 text=True,
                 check=False,
+                **self._subprocess_kwargs,
             )
             return proc.returncode == 0
         except FileNotFoundError:
@@ -50,6 +87,8 @@ class ExifToolRunner:
             return
         if ExifToolHelper is None:
             raise RuntimeError("PyExifTool is not installed. Install dependencies from requirements.txt.")
+
+        _patch_pyexiftool_popen_for_windows()
         self._helper = ExifToolHelper(executable=self.executable)
         self._helper.__enter__()
 
@@ -108,6 +147,12 @@ class ExifToolRunner:
 
     def write_with_args(self, file_path: Path, args: list[str]) -> None:
         cmd = [self.executable, "-overwrite_original"] + args + [str(file_path)]
-        proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            **self._subprocess_kwargs,
+        )
         if proc.returncode != 0:
             raise RuntimeError(proc.stderr.strip() or "ExifTool write failed")
