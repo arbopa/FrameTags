@@ -114,7 +114,7 @@ General settings are saved in `data/settings.json`:
 
 ## Dependency: ExifTool
 
-FrameTags requires the Python wrapper dependency `PyExifTool` and an ExifTool executable. FrameTags first checks for `exiftool.exe` next to the app, then falls back to system `PATH`. 
+FrameTags requires `PyExifTool` and an ExifTool executable. FrameTags first checks for `exiftool.exe` next to the app, then falls back to system `PATH`.
 
 - ExifTool: [https://exiftool.org/](https://exiftool.org/)
 
@@ -134,12 +134,32 @@ python main.py
 
 Requires Python 3.12+.
 
-## Packaging plan
+## Build Windows distributable
 
-Project is structured for PyInstaller-based packaging.
+From `E:\FrameTags\frametags` in `cmd`:
 
-- app name: `FrameTags`
-- executable target: `frametags`
+```bat
+.venv\Scripts\activate
+build.bat
+```
+
+`build.bat` will:
+
+1. install build dependency from `build-requirements.txt`
+2. run `PyInstaller` with `frametags.spec`
+3. create output in `dist\FrameTags`
+
+Distribution layout:
+
+```text
+dist\FrameTags\
+  FrameTags.exe
+  exiftool.exe
+  exiftool_files\
+  _internal\...
+```
+
+Zip `dist\FrameTags` and share it. Users can run `FrameTags.exe` directly.
 
 ## Future planned features
 
