@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -13,11 +14,13 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenuBar,
     QMessageBox,
     QPushButton,
     QPlainTextEdit,
@@ -27,7 +30,6 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
-    QInputDialog,
 )
 
 from .directory_scanner import DirectoryScanner
@@ -154,11 +156,13 @@ class PreviewDialog(QDialog):
             ["File", "Existing Summary", "Proposed Summary", "Changed Fields"]
         )
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Interactive)
-        self.table.setColumnWidth(0, 420)
-        self.table.setColumnWidth(1, 320)
-        self.table.setColumnWidth(2, 320)
-        self.table.setColumnWidth(3, 140)
+        header.setSectionResizeMode(0, QHeaderView.Interactive)
+        header.setSectionResizeMode(1, QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 250)
+        self.table.setColumnWidth(1, 300)
+        self.table.setColumnWidth(3, 95)
         self.table.setWordWrap(False)
         self.table.verticalHeader().setDefaultSectionSize(26)
         self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -191,31 +195,51 @@ class PreviewDialog(QDialog):
         action_count = sum(len(c.actions) for c in self.changes)
         return f"{file_count} files will be updated ({action_count} metadata changes)"
 
-    def _populate_table(self) -> None:
-        def compact(value: object) -> str:
-            text = str(value).replace("\n", " ").strip()
-            if len(text) <= 80:
-                return text
-            return text[:77] + "..."
+    @staticmethod
+    def _field_display_label(field_key: str) -> str:
+        special_labels = {
+            "creator_email": "Email",
+            "creator_website": "Website",
+            "caption": "Caption",
+            "keywords": "Keywords",
+        }
+        if field_key in special_labels:
+            return special_labels[field_key]
+        return FIELD_DEFS[field_key].label
 
+    @staticmethod
+    def _display_value(value: object) -> str:
+        if value is None:
+            return "-"
+        if isinstance(value, list):
+            cleaned = [str(v).strip() for v in value if str(v).strip()]
+            return ", ".join(cleaned) if cleaned else "-"
+        text = str(value).strip()
+        return text if text else "-"
+
+    def _format_summary(self, actions, proposed: bool) -> str:
+        parts: list[str] = []
+        for action in actions:
+            label = self._field_display_label(action.field)
+            raw_value = action.to_value if proposed else action.from_value
+            parts.append(f"{label}: {self._display_value(raw_value)}")
+        return "; ".join(parts)
+
+    def _populate_table(self) -> None:
         self.table.setRowCount(0)
         for change in self.changes:
             row = self.table.rowCount()
             self.table.insertRow(row)
 
-            existing_summary = "; ".join(
-                f"{a.field}={compact(a.from_value)}" for a in change.actions
-            )
-            proposed_summary = "; ".join(
-                f"{a.field}={compact(a.to_value)}" for a in change.actions
-            )
+            existing_summary = self._format_summary(change.actions, proposed=False)
+            proposed_summary = self._format_summary(change.actions, proposed=True)
 
-            file_item = QTableWidgetItem(str(change.file_path))
+            file_item = QTableWidgetItem(Path(change.file_path).name)
             file_item.setToolTip(str(change.file_path))
             existing_item = QTableWidgetItem(existing_summary)
-            existing_item.setToolTip("; ".join(f"{a.field}={a.from_value}" for a in change.actions))
+            existing_item.setToolTip(existing_summary)
             proposed_item = QTableWidgetItem(proposed_summary)
-            proposed_item.setToolTip("; ".join(f"{a.field}={a.to_value}" for a in change.actions))
+            proposed_item.setToolTip(proposed_summary)
             changed_item = QTableWidgetItem(str(change.changed_field_count))
 
             self.table.setItem(row, 0, file_item)
@@ -271,10 +295,27 @@ class MainWindow(QMainWindow):
         self.field_inputs: dict[str, QWidget] = {}
 
         self._build_ui()
+        self._build_menu()
         self._load_presets()
         self._restore_settings()
         self._update_preview_enabled()
 
+    def _build_menu(self) -> None:
+        menu_bar = QMenuBar(self)
+        self.setMenuBar(menu_bar)
+        help_menu = menu_bar.addMenu("Help")
+        about_action = QAction("About FrameTags", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
+    def _show_about(self) -> None:
+        QMessageBox.about(
+            self,
+            "About FrameTags",
+            "FrameTags\n"
+            "Batch metadata editor for photographers\n"
+            "Copyright (c) Cameratrician Studios",
+        )
     def _build_ui(self) -> None:
         central = QWidget(self)
         self.setCentralWidget(central)
